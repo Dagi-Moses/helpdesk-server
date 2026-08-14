@@ -13,6 +13,7 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
     return res.status(err.statusCode).json({
       success: false,
       message: err.message,
+      ...(err.code ? { code: err.code } : {}),
       ...(err.details ? { details: err.details } : {}),
     });
   }

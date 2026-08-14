@@ -15,11 +15,15 @@ export const UserService = {
     const existing = await prisma.user.findUnique({ where: { email: input.email } });
     if (existing) throw new AppError("A user with this email already exists", 409);
 
-    const passwordHash = await bcrypt.hash(input.password, SALT_ROUNDS);
+    const { password, ...rest } = input;
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     const user = await prisma.user.create({
-      data: { ...input, passwordHash },
+      data: { ...rest, passwordHash , isEmailVerified: true },
     });
     return sanitize(user);
+
+
+
   },
 
   async list(filters: { role?: Role }) {

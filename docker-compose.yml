@@ -19,6 +19,25 @@ services:
       timeout: 5s
       retries: 5
 
+  # api:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: helpdesk_api
+  #   restart: unless-stopped
+  #   env_file:
+  #     - .env
+  #   environment:
+  #     DATABASE_URL: postgresql://helpdesk_user:helpdesk_pass@postgres:5432/helpdesk_db?schema=public
+  #   ports:
+  #     - "4000:4000"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ./src:/app/src
+  #   command: sh -c "npx prisma migrate deploy && npm run dev"
+
   api:
     build:
       context: .
@@ -34,9 +53,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    volumes:
-      - ./src:/app/src
-    command: sh -c "npx prisma migrate deploy && npm run dev"
+    command: sh -c "npm run build && npm start"
 
 volumes:
   postgres_data:

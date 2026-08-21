@@ -44,7 +44,7 @@ export function createApp(): Application {
   apiRouter.use("/categories", categoryRoutes);
   apiRouter.use("/users", userRoutes);
 
-  app.use("/api/v1", apiRouter);
+  app.use("/v1", apiRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

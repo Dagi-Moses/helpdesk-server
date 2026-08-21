@@ -6,7 +6,6 @@ import { logger } from "@/utils/logger";
 import { prisma } from "@/config/prisma";
 
 const PORT = process.env.PORT || 4000;
-const NODE_ENV = process.env.NODE_ENV || "development";
 const API_URL =
   process.env.API_URL || `http://localhost:${PORT}`;
 
@@ -19,7 +18,7 @@ async function bootstrap() {
 
     const server = app.listen(PORT, () => {
       logger.info(`Server running on port ${PORT}`);
-      logger.info(`API docs available at http://localhost:${PORT}/api-docs`);
+      logger.info(`API docs available at ${API_URL}/api-docs`);
 
   logger.info(`API docs available at ${API_URL}/api-docs`);
     });

@@ -129,17 +129,47 @@ export function verificationEmail(firstName: string, verifyUrl: string) {
 `;
 }
 
-// export function verificationEmail(firstName: string, verifyUrl: string) {
-//   return `
-//     <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
-//       <h2>Verify your Qrynex helpdesk account</h2>
-//       <p>Hi ${firstName},</p>
-//       <p>Thanks for signing up for the IT Helpdesk. Click below to verify your email address:</p>
-//       <p>
-//         <a href="${verifyUrl}" style="background:#2451B3;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">
-//           Verify email
-//         </a>
-//       </p>
-//       <p style="color:#666;font-size:13px;">This link expires in 24 hours. If you didn't create this account, you can ignore this email.</p>
-//     </div>`;
-// }
+export function resetPasswordEmail(firstName: string, resetUrl: string) {
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Reset your password</h2>
+      <p>Hi ${firstName},</p>
+      <p>We received a request to reset your password. Click below to choose a new one:</p>
+      <p>
+        <a href="${resetUrl}" style="background:#2451B3;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">
+          Reset password
+        </a>
+      </p>
+      <p style="color:#666;font-size:13px;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email — your password won't change.</p>
+    </div>`;
+}
+
+export function ticketAssignedEmail(agentName: string, ticketTitle: string, ticketUrl: string) {
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Ticket assigned to you</h2>
+      <p>Hi ${agentName},</p>
+      <p>You've been assigned: <strong>${ticketTitle}</strong></p>
+      <p><a href="${ticketUrl}" style="background:#2451B3;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View ticket</a></p>
+    </div>`;
+}
+
+export function ticketCommentEmail(recipientName: string, commenterName: string, ticketTitle: string, ticketUrl: string) {
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>New comment on your ticket</h2>
+      <p>Hi ${recipientName},</p>
+      <p>${commenterName} commented on: <strong>${ticketTitle}</strong></p>
+      <p><a href="${ticketUrl}" style="background:#2451B3;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View ticket</a></p>
+    </div>`;
+}
+
+export function ticketResolvedEmail(employeeName: string, ticketTitle: string, ticketUrl: string) {
+  return `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+      <h2>Your ticket has been resolved</h2>
+      <p>Hi ${employeeName},</p>
+      <p><strong>${ticketTitle}</strong> has been marked as resolved. If the issue isn't actually fixed, reopen it from the ticket page.</p>
+      <p><a href="${ticketUrl}" style="background:#0F9E8E;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">View ticket</a></p>
+    </div>`;
+}

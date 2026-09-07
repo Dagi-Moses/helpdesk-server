@@ -4,7 +4,8 @@ import { AppError } from "@/utils/apiResponse";
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from "@/utils/jwt";
 import { Role } from "@prisma/client";
 import crypto from "crypto";
-import { sendMail, verificationEmail } from "@/utils/mailer";
+import { sendMail, verificationEmail,resetPasswordEmail,  } from "@/utils/mailer";
+
 
 const SALT_ROUNDS = 12;
 
@@ -212,5 +213,49 @@ async resendVerification(email: string) {
   await sendMail(user.email, "Verify your email", verificationEmail(user.firstName, verifyUrl));
 
   return { message: "If an account exists and is unverified, a new link has been sent." };
+},
+
+async forgotPassword(email: string) {
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  // Same response either way — don't reveal whether the account exists.
+  if (!user || !user.isActive) {
+    return { message: "If an account exists with that email, a reset link has been sent." };
+  }
+
+  const rawToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+  const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { resetPasswordToken: tokenHash, resetPasswordExpires: expires },
+  });
+
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}`;
+  await sendMail(user.email, "Reset your password", resetPasswordEmail(user.firstName, resetUrl));
+
+  return { message: "If an account exists with that email, a reset link has been sent." };
+},
+
+async resetPassword(rawToken: string, newPassword: string) {
+  const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+  const user = await prisma.user.findFirst({
+    where: { resetPasswordToken: tokenHash, resetPasswordExpires: { gt: new Date() } },
+  });
+
+  if (!user) {
+    throw new AppError("This reset link is invalid or has expired", 400);
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash, resetPasswordToken: null, resetPasswordExpires: null },
+  });
+
+  return { message: "Password reset — you can now sign in with your new password." };
 },
 };

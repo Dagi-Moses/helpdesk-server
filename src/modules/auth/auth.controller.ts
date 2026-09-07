@@ -18,10 +18,6 @@ async resendVerification(req: Request, res: Response) {
   const result = await AuthService.resendVerification(req.body.email);
   return ApiResponse.success(res, result, result.message);
 },
-  // async register(req: Request, res: Response) {
-  //   const result = await AuthService.register(req.body);
-  //   return ApiResponse.created(res, result, "Account created successfully");
-  // },
 
   async login(req: Request, res: Response) {
     const result = await AuthService.login(req.body);
@@ -43,6 +39,16 @@ async resendVerification(req: Request, res: Response) {
     return ApiResponse.success(res, result, "Allowed email domains retrieved");
     
   },
+
+  async forgotPassword(req: Request, res: Response) {
+  const result = await AuthService.forgotPassword(req.body.email);
+  return ApiResponse.success(res, result, result.message);
+},
+
+async resetPassword(req: Request, res: Response) {
+  const result = await AuthService.resetPassword(req.body.token, req.body.password);
+  return ApiResponse.success(res, result, result.message);
+},
   
 };
 

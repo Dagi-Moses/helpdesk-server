@@ -32,6 +32,8 @@ enum Priority {
 model User {
   id             String   @id @default(uuid())
   email          String   @unique
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
   passwordHash   String
   firstName      String
   lastName       String

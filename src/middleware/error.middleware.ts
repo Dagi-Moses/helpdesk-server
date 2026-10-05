@@ -17,7 +17,11 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
       ...(err.details ? { details: err.details } : {}),
     });
   }
-
+  // Multer errors (file too large, too many files, bad mimetype from
+  // our fileFilter) — surface these as 400s instead of generic 500s.
+  if (err.name === "MulterError" || err.message?.startsWith("File type")) {
+    return res.status(400).json({ success: false, message: err.message });
+  }
   // Prisma known request errors (unique constraint, not found, etc.)
   if (err instanceof Prisma.PrismaClientKnownRequestError) {
     if (err.code === "P2002") {

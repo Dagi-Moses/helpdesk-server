@@ -53,6 +53,7 @@ model User {
   comments         Comment[]
   ticketHistory    TicketHistory[]
   attachments      Attachment[]
+  notifications  Notification[]
 
   @@map("users")
 }
@@ -103,6 +104,7 @@ model Ticket {
   comments       Comment[]
   attachments    Attachment[]
   history        TicketHistory[]
+  notifications  Notification[]
 
   @@index([status])
   @@index([priority])
@@ -150,4 +152,28 @@ model TicketHistory {
   newValue  String?
   createdAt DateTime @default(now())
   @@map("ticket_history")
+}
+
+enum NotificationType {
+  TICKET_CREATED
+  TICKET_ASSIGNED
+  TICKET_COMMENTED
+  TICKET_RESOLVED
+  TICKET_CLOSED
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  ticketId  String?
+  ticket    Ticket?          @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@map("notifications")
 }

@@ -229,7 +229,7 @@ async forgotPassword(email: string) {
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { resetPasswordToken: tokenHash, resetPasswordExpires: expires },
+    data: { resetPasswordToken: tokenHash, resetPasswordExpires: expires } as any,
   });
 
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${rawToken}`;
@@ -242,7 +242,10 @@ async resetPassword(rawToken: string, newPassword: string) {
   const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
 
   const user = await prisma.user.findFirst({
-    where: { resetPasswordToken: tokenHash, resetPasswordExpires: { gt: new Date() } },
+    // where: { resetPasswordToken: tokenHash, resetPasswordExpires: { gt: new Date() } },
+     where: {
+      ...( { resetPasswordToken: tokenHash, resetPasswordExpires: { gt: new Date() } } as any),
+    },
   });
 
   if (!user) {
@@ -253,7 +256,7 @@ async resetPassword(rawToken: string, newPassword: string) {
 
   await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash, resetPasswordToken: null, resetPasswordExpires: null },
+    data: { passwordHash, resetPasswordToken: null, resetPasswordExpires: null } as any,
   });
 
   return { message: "Password reset — you can now sign in with your new password." };

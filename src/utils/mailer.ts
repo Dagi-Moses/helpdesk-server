@@ -37,7 +37,7 @@ export async function sendMail(to: string, subject: string, html: string) {
 
   try {
      
-
+logger.info(`Sending email to ${to} with subject "${subject}"`);
     const result = await transporter.sendMail({
   
        from:    process.env.MAIL_FROM || "Qrynex Helpdesk <no-reply@qrynex.com>",
@@ -46,19 +46,25 @@ export async function sendMail(to: string, subject: string, html: string) {
       subject,
       html,
     });
-
+logger.info(`Email sent to ${to} with subject "${subject}"`, {
+  messageId: result.messageId,
+  response: result.response,
+  accepted: result.accepted,
+  rejected: result.rejected,
+  envelope: result.envelope,
+});
     
 return result;
   } catch (err:any) {
     
-
+    logger.error(`Failed to send email to ${to}`, err);
     throw new AppError(
       "Failed to send email. Please try again later.",
       500,
       undefined,
       "EMAIL_SEND_FAILED"
     );
-    // logger.error(`Failed to send email to ${to}`, err);
+
     // //throw err;
     //   throw new AppError("Failed to send email. Please try again later.", 500);
   }

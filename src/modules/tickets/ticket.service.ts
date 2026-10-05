@@ -1,6 +1,9 @@
 import { Prisma, Priority, Role, TicketStatus } from "@prisma/client";
 import { prisma } from "@/config/prisma";
 import { AppError } from "@/utils/apiResponse";
+import { sendMail, ticketAssignedEmail, ticketResolvedEmail } from "@/utils/mailer";
+import { logger } from "@/utils/logger";
+import { NotificationService } from "@/modules/notifications/notification.service";
 
 interface AuthUser {
   userId: string;
@@ -51,6 +54,15 @@ export const TicketService = {
       },
       include: ticketWithRelations,
     });
+
+
+  NotificationService.notifyAdmins({
+    type: "TICKET_CREATED",
+    title: "New ticket needs assignment",
+    message: ticket.title,
+    ticketId: ticket.id,
+  }).catch((err) => logger.error("Failed to create ticket-created notifications", err));
+
     return ticket;
   },
 
@@ -61,8 +73,6 @@ export const TicketService = {
       ...(filters.categoryId ? { categoryId: filters.categoryId } : {}),
     };
 
-    // Role-based visibility: employees only see their own tickets,
-    // agents see tickets assigned to them, admins see everything.
     if (user.role === Role.EMPLOYEE) {
       where.createdById = user.userId;
     } else if (user.role === Role.SUPPORT_AGENT) {
@@ -86,33 +96,40 @@ export const TicketService = {
   },
 
   async getById(user: AuthUser, ticketId: string) {
-    const ticket = await prisma.ticket.findUnique({
-      where: { id: ticketId },
-      include: {
-        ...ticketWithRelations,
-        comments: {
-          include: { author: { select: { id: true, firstName: true, lastName: true, role: true } } },
-          orderBy: { createdAt: "asc" },
-        },
-        history: {
-          include: { user: { select: { id: true, firstName: true, lastName: true } } },
-          orderBy: { createdAt: "desc" },
-        },
-        attachments: true,
+  const ticket = await prisma.ticket.findUnique({
+    where: { id: ticketId },
+    include: {
+      ...ticketWithRelations,
+      comments: {
+        include: { author: { select: { id: true, firstName: true, lastName: true, role: true } } },
+        orderBy: { createdAt: "asc" },
       },
-    });
+      history: {
+        include: { user: { select: { id: true, firstName: true, lastName: true } } },
+        orderBy: { createdAt: "desc" },
+      },
+      attachments: {
+        include: { uploadedBy: { select: { id: true, firstName: true, lastName: true } } },
+      },
+    },
+  });
 
-    if (!ticket) throw new AppError("Ticket not found", 404);
+  if (!ticket) throw new AppError("Ticket not found", 404);
 
-    this.assertCanView(user, ticket.createdById, ticket.assignedToId);
+  this.assertCanView(user, ticket.createdById, ticket.assignedToId);
 
-    // Employees should not see internal-only comments.
-    if (user.role === Role.EMPLOYEE) {
-      ticket.comments = ticket.comments.filter((c) => !c.isInternal);
-    }
+  if (user.role === Role.EMPLOYEE) {
+    ticket.comments = ticket.comments.filter((c) => !c.isInternal);
+  }
 
-    return ticket;
-  },
+  ticket.attachments = ticket.attachments.map((a) => {
+    const { fileUrl: _internal, ...rest } = a;
+    return { ...rest, downloadUrl: `/attachments/${a.id}/download` } as never;
+  });
+
+  return ticket;
+},
+ 
 
   async update(user: AuthUser, ticketId: string, input: Partial<CreateTicketInput>) {
     const ticket = await this.findOrThrow(ticketId);
@@ -132,40 +149,55 @@ export const TicketService = {
     });
   },
 
+
   async assign(user: AuthUser, ticketId: string, assignedToId: string) {
-    if (user.role !== Role.ADMIN) {
-      throw new AppError("Only an admin can assign tickets", 403);
-    }
+  if (user.role !== Role.ADMIN) {
+    throw new AppError("Only an admin can assign tickets", 403);
+  }
 
-    const ticket = await this.findOrThrow(ticketId);
+  const ticket = await this.findOrThrow(ticketId);
 
-    const agent = await prisma.user.findUnique({ where: { id: assignedToId } });
-    if (!agent || agent.role !== Role.SUPPORT_AGENT) {
-      throw new AppError("assignedToId must reference an active support agent", 400);
-    }
+  const agent = await prisma.user.findUnique({ where: { id: assignedToId } });
+  if (!agent || agent.role !== Role.SUPPORT_AGENT) {
+    throw new AppError("assignedToId must reference an active support agent", 400);
+  }
 
-    const [updated] = await prisma.$transaction([
-      prisma.ticket.update({
-        where: { id: ticketId },
-        data: {
-          assignedToId,
-          status: ticket.status === TicketStatus.OPEN ? TicketStatus.ASSIGNED : ticket.status,
-        },
-        include: ticketWithRelations,
-      }),
-      prisma.ticketHistory.create({
-        data: {
-          ticketId,
-          userId: user.userId,
-          field: "assignedTo",
-          oldValue: ticket.assignedToId ?? "unassigned",
-          newValue: assignedToId,
-        },
-      }),
-    ]);
+  const [updated] = await prisma.$transaction([
+    prisma.ticket.update({
+      where: { id: ticketId },
+      data: {
+        assignedToId,
+        status: ticket.status === TicketStatus.OPEN ? TicketStatus.ASSIGNED : ticket.status,
+      },
+      include: ticketWithRelations,
+    }),
+    prisma.ticketHistory.create({
+      data: {
+        ticketId,
+        userId: user.userId,
+        field: "assignedTo",
+        oldValue: ticket.assignedToId ?? "unassigned",
+        newValue: assignedToId,
+      },
+    }),
+  ]);
 
-    return updated;
-  },
+  const ticketUrl = `${process.env.FRONTEND_URL}/tickets/${ticketId}`;
+  sendMail(agent.email, "Ticket assigned to you", ticketAssignedEmail(agent.firstName, updated.title, ticketUrl)).catch(
+    (err) => logger.error("Failed to send assignment email", err)
+  );
+
+    NotificationService.create({
+    userId: assignedToId,
+    type: "TICKET_ASSIGNED",
+    title: "Ticket assigned to you",
+    message: updated.title,
+    ticketId: updated.id,
+  }).catch((err) => logger.error("Failed to create assignment notification", err));
+
+
+  return updated;
+},
 
   async updateStatus(user: AuthUser, ticketId: string, newStatus: TicketStatus) {
     const ticket = await this.findOrThrow(ticketId);
@@ -206,8 +238,40 @@ export const TicketService = {
       }),
     ]);
 
-    return updated;
-  },
+      if (newStatus === TicketStatus.RESOLVED || newStatus === TicketStatus.CLOSED) {
+    const ticketUrl = `${process.env.FRONTEND_URL}/tickets/${ticketId}`;
+
+    if (newStatus === TicketStatus.RESOLVED) {
+      sendMail(
+        updated.createdBy.email,
+        "Your ticket has been resolved",
+        ticketResolvedEmail(updated.createdBy.firstName, updated.title, ticketUrl)
+      ).catch((err) => logger.error("Failed to send resolution email", err));
+    }
+
+    NotificationService.create({
+      userId: updated.createdBy.id,
+      type: newStatus === TicketStatus.RESOLVED ? "TICKET_RESOLVED" : "TICKET_CLOSED",
+      title: newStatus === TicketStatus.RESOLVED ? "Your ticket was resolved" : "Your ticket was closed",
+      message: updated.title,
+      ticketId: updated.id,
+    }).catch((err) => logger.error("Failed to create status notification", err));
+  }
+
+  return updated;
+},
+
+  //    if (newStatus === TicketStatus.RESOLVED) {
+  //   const ticketUrl = `${process.env.FRONTEND_URL}/tickets/${ticketId}`;
+  //   sendMail(
+  //     updated.createdBy.email,
+  //     "Your ticket has been resolved",
+  //     ticketResolvedEmail(updated.createdBy.firstName, updated.title, ticketUrl)
+  //   ).catch((err) => logger.error("Failed to send resolution email", err));
+  // }
+
+  //   return updated;
+  // },
 
   async findOrThrow(ticketId: string) {
     const ticket = await prisma.ticket.findUnique({ where: { id: ticketId } });
@@ -264,4 +328,7 @@ export const TicketService = {
     ]);
     return { total, open, resolved, closed };
   },
+
+
+  
 };

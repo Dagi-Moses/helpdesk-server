@@ -13,19 +13,27 @@ import authRoutes from "@/modules/auth/auth.routes";
 import ticketRoutes from "@/modules/tickets/ticket.routes";
 import categoryRoutes from "@/modules/categories/category.routes";
 import userRoutes from "@/modules/users/user.routes";
+import departmentRoutes from "@/modules/departments/department.routes";
+import attachmentDownloadRoutes from "@/modules/attachments/attachment-download.route";
+import notificationRoutes from "@/modules/notifications/notification.routes";
 
 export function createApp(): Application {
   const app = express();
 
   app.use(helmet());
-  app.use(
-    cors({
-      origin: process.env.CORS_ORIGIN?.split(",") || "*",
-      credentials: true,
-    })
-  );
+ app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN?.split(",").map((origin) => origin.trim()),
+    credentials: true,
+  })
+);
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true }));
+  app.use((req, _res, next) => {
+  console.log(`[REQUEST] ${req.method} ${req.originalUrl}`);
+  next();
+});
+
   app.use(
     morgan("combined", {
       stream: { write: (message: string) => logger.info(message.trim()) },
@@ -43,6 +51,9 @@ export function createApp(): Application {
   apiRouter.use("/tickets", ticketRoutes);
   apiRouter.use("/categories", categoryRoutes);
   apiRouter.use("/users", userRoutes);
+  apiRouter.use("/departments", departmentRoutes);
+  apiRouter.use("/attachments", attachmentDownloadRoutes);
+  apiRouter.use("/notifications", notificationRoutes);
 
   app.use("/v1", apiRouter);
 

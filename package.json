@@ -27,6 +27,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
+    "multer": "^2.3.0",
     "nodemailer": "^9.0.5",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
@@ -40,6 +41,7 @@
     "@types/jest": "^29.5.13",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/morgan": "^1.9.9",
+    "@types/multer": "^2.2.0",
     "@types/node": "^20.16.10",
     "@types/nodemailer": "^8.0.1",
     "@types/supertest": "^6.0.2",
@@ -62,6 +64,6 @@
   },
   "prisma": {
     "prodseed": "ts-node -r tsconfig-paths/register prisma/prodseed.ts",
-    "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts"
+    "seed": "ts-node -r tsconfig-paths/register prisma/prodseed.ts"
   }
 }
